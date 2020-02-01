@@ -3,7 +3,7 @@ Blockchain dApp to store criminal records in IPFS and secure its hash with Block
 Uses Solidity to script the smart contracts and React JS for implement the UI.
 
 ### **Architecture**
-![Architecture](/New_Project.jpg)
+[Architecture](https://drive.google.com/open?id=1aNIDpOBhU6BZ0EUTl7BNSkRI63uSW42L)
 
 ### **IPFS**
 Basically, IPFS takes any files and objects, creates different chunks of the file and thier hashes are stored
