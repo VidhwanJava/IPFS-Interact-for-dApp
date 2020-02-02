@@ -27,9 +27,13 @@ IPFS returns a 256 bit hash of the file uploaded, using SHA-256 algorithm. (Will
 Cryptographic hashes come with a couple of very important characteristics:
 
 **deterministic** - the same input message always returns exactly the same output hash.
+
 **uncorrelated** - a small change in the message should generate a completely different hash.
+
 **unique** - it's infeasible to generate the same hash from two different messages.
+
 **one-way** - it's infeasible to guess or calculate the input message from its hash.
+
 
 It turns out these features also mean we can use a cryptographic hash to identify any piece of data: the hash is unique to the data we calculated it from and it’s not too long (a hash is a fixed length, so the SHA-256 hash of a one-gigabyte video file is still only 32 bytes), so sending it around the network doesn't take up a lot of resources.
 
