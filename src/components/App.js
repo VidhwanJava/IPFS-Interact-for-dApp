@@ -1,70 +1,84 @@
 import React, { Component } from 'react';
-import ReactDOM from 'react-dom';
+import Web3 from 'web3';
 import './App.css';
+import File from '../abis/File.json'
 
-const ipfsClient = require('ipfs-http-client')   //importing module
+const ipfsClient = require('ipfs-http-client')
+const ipfs = ipfsClient({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' }) // leaving out the arguments will default to these values
 
-const ipfs = ipfsClient({ host: 'ipfs.infura.io', port: '5001', protocol: 'https' })   // connect to ipfs daemon API server
+class App extends Component {
 
-class App extends React.Component {
-
-  constructor(props){
-    super(props);
-    // this.state={
-      // buffer: null,
-      // fileHash : 'QmbBpbxg8poDNdAMcMgFi86dz2gwmtrW5x3ojQHfz3yp4i'
-
-    // };
-
-    this.state = { items: [], text: '' };
-    this.captureFile = this.captureFile.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
+  async componentWillMount() {
+    await this.loadWeb3()
+    await this.loadBlockchainData()
   }
 
-  captureFile=(event)=>{
-    event.preventDefault()    // to prevent the default event actions that may taken by javascript
-  //now process file for IPFS
-  const file = event.target.files[0]
-  const reader = new window.FileReader() //creating new object and adding to the array
-  reader.readAsArrayBuffer(file)  //storing the blob file to the buffer
-  reader.onloadend=()=>{
-    this.setState({ buffer: Buffer(reader.result)})  
-  // console.log('buffer',Buffer(reader.result))
+  async loadWeb3() {
+    if (window.ethereum) {
+      window.web3 = new Web3(window.ethereum)
+      await window.ethereum.enable()
+    }
+    else if (window.web3) {
+      window.web3 = new Web3(window.web3.currentProvider)
+    }
+    else {
+      window.alert('Non-Ethereum browser detected. You should consider trying MetaMask!')
     }
   }
 
+  async loadBlockchainData() {
+    const web3 = window.web3
+    // Load account
+    const accounts = await web3.eth.getAccounts()
+    this.setState({ account: accounts[0] })
+    const networkId = await web3.eth.net.getId()
+    const networkData = File.networks[networkId]
+    if(networkData) {
+      const contract = web3.eth.Contract(File.abi, networkData.address)
+      this.setState({ contract })
+      const FileHash = await contract.methods.get().call()
+      this.setState({ FileHash })
+    } else {
+      window.alert('Smart contract not deployed to detected network.')
+    }
+  }
 
-//Example hash: "QmbBpbxg8poDNdAMcMgFi86dz2gwmtrW5x3ojQHfz3yp4i"
-// Can be retreived from: "https://ipfs.infura.io/ipfs/QmbBpbxg8poDNdAMcMgFi86dz2gwmtrW5x3ojQHfz3yp4i"
+  constructor(props) {
+    super(props)
 
-  onSubmit = (event)=>{   //submit button event
+    this.state = {
+      FileHash: '',
+      contract: null,
+      web3: null,
+      buffer: null,
+      account: null
+    }
+  }
+
+  captureFile = (event) => {
     event.preventDefault()
-    console.log("Submitting the file...")
-    ipfs.add(this.state.buffer,(error,result)=>{   //params : (data , callback)
-
-      console.log("Ipfs result",result)   //gives the hash as return
-
-      const fileHash = result[0].hash  //storing hash to const from result
-      // this.setState({fileHash})
-
-    const newFile = {
-      text: fileHash,
-      id: Date.now()   //don't know why, but won't work without id!
-    };
-
-     // console.log(fileHash)
-    this.setState(state => ({
-      items: state.items.concat(newFile),  //adding new hash to the list
-      text: ''
-
-    }));
-
-      if(error){
-      console.log(error)    //log the error if crashed
-      return
+    const file = event.target.files[0]
+    const reader = new window.FileReader()
+    reader.readAsArrayBuffer(file)
+    reader.onloadend = () => {
+      this.setState({ buffer: Buffer(reader.result) })
+      console.log('buffer', this.state.buffer)
     }
+  }
+
+  onSubmit = (event) => {
+    event.preventDefault()
+    console.log("Submitting file to ipfs...")
+    ipfs.add(this.state.buffer, (error, result) => {
+      console.log('Ipfs result', result)
+      if(error) {
+        console.error(error)
+        return
+      }
+       this.state.contract.methods.set(result[0].hash).send({ from: this.state.account }).then((r) => {
+         return this.setState({ FileHash: result[0].hash })
+       })
     })
-        //now store the resultant hash on blockchain.
   }
 
   render() {
@@ -73,29 +87,29 @@ class App extends React.Component {
         <nav className="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow">
           <a
             className="navbar-brand col-sm-3 col-md-2 mr-0"
-            href="http://www.cce.edu.in"
+            href="http://www.dappuniversity.com/bootcamp"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Chain Cuffs
+            File of the Day
           </a>
         </nav>
         <div className="container-fluid mt-5">
           <div className="row">
             <main role="main" className="col-lg-12 d-flex text-center">
-              <div className="content mr-auto ml-auto mt-5">
-                <div>
-                  <h3>Hash of files uploaded :</h3>
-                   <TodoList items={this.state.items} />
-                </div>
+              <div className="content mr-auto ml-auto">
+                <a
+                  href="http://www.dappuniversity.com/bootcamp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img src={`https://ipfs.infura.io/ipfs/${this.state.FileHash}`} />
+                </a>
                 <p>&nbsp;</p>
-                <h2>Upload case files</h2>
-                <p>&nbsp;</p>
-                <form onSubmit={this.onSubmit}>
-                  <input type='file' onChange={this.captureFile}/>
-                  <button>
-                      Upload 
-                  </button>
+                <h2>Change File</h2>
+                <form onSubmit={this.onSubmit} >
+                  <input type='file' onChange={this.captureFile} />
+                  <input type='submit' />
                 </form>
               </div>
             </main>
@@ -105,21 +119,5 @@ class App extends React.Component {
     );
   }
 }
-class TodoList extends React.Component {
-  render() {
-    return (
-      <ol>
-        {this.props.items.map(item => (
-          <li key={item.id}>{item.text}</li>  //class for rendering the list elements
-        ))}
-      </ol>
-    );
-  }
-}
-
-ReactDOM.render(
-  <App />,
-  document.getElementById('root')     //
-);
 
 export default App;
